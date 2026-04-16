@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}{{ post.title }} - MiniForum{% endblock %}
+{% block body %}
+<div style="margin-bottom:20px">
+  <a href="{{ url_for('index') }}" style="font-size:14px;color:#6b7280">← 返回首页</a>
+</div>
+<div class="card">
+  <h2 style="font-size:22px;font-weight:700;margin-bottom:12px">{{ post.title }}</h2>
+  <div class="post-meta mb">
+    <span>👤 {{ post.username }}</span>
+    <span>🕐 {{ post.created_at | date }}</span>
+  </div>
+  <div class="post-content" style="padding:16px 0;border-top:1px solid #e5e7eb">{{ post.content | markdown | safe }}</div>
+  {% if current_user and current_user.is_admin %}
+  <div style="margin-top:16px;text-align:right">
+    <form method="POST" action="{{ url_for('admin_delete_post', pid=post.id) }}" onsubmit="return confirm('确定删除此帖？')">
+      <button type="submit" class="btn btn-danger btn-sm">删除此帖</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<h3 style="font-size:16px;font-weight:600;margin:24px 0 16px">💬 回复 ({{ replies|length }})</h3>
+<div class="card">
+  {% if replies %}
+    {% for r in replies %}
+    <div class="reply-item">
+      <div class="reply-meta">
+        <strong>{{ r.username }}</strong>
+        <span style="margin-left:10px">{{ r.created_at | date }}</span>
+        {% if current_user and current_user.is_admin %}
+        <form method="POST" action="{{ url_for('admin_delete_reply', rid=r.id) }}" style="display:inline;margin-left:10px" onsubmit="return confirm('删除此回复？')">
+          <button type="submit" class="btn btn-danger btn-sm">删</button>
+        </form>
+        {% endif %}
+      </div>
+      <div class="reply-content" style="font-size:14px">{{ r.content | markdown | safe }}</div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="color:#9ca3af;text-align:center;padding:20px 0">暂无回复，来说点什么吧</p>
+  {% endif %}
+</div>
+
+{% if current_user %}
+<h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">发表回复</h3>
+<div class="card">
+  <form method="POST">
+    <div class="form-group">
+      <div class="md-toolbar">
+        <button type="button" onclick="insertMd('**','**')" title="粗体"><b>B</b></button>
+        <button type="button" onclick="insertMd('*','*')" title="斜体"><i>I</i></button>
+        <button type="button" onclick="insertMd('`','`')" title="代码">&lt;/&gt;</button>
+        <button type="button" onclick="insertMd('\n```\n','\n```\n')" title="代码块">{ }</button>
+        <button type="button" onclick="insertMd('[','](url)')" title="链接">🔗</button>
+        <button type="button" onclick="insertMd('\n- ','')" title="列表">•</button>
+        <button type="button" onclick="insertMd('\n> ','')" title="引用">"</button>
+        <button type="button" onclick="insertMd('\n### ','')" title="标题">H</button>
+      </div>
+      <textarea name="content" id="md-editor" rows="5" placeholder="支持 Markdown 语法…" required style="resize:vertical"></textarea>
+    </div>
+    <button type="submit" class="btn">提交回复</button>
+  </form>
+</div>
+<script>
+function insertMd(before,after){
+  var ta=document.getElementById('md-editor');
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  var v=ta.value,sel=v.substring(s,e);
+  ta.value=v.substring(0,s)+before+sel+after+v.substring(e);
+  ta.focus();
+  ta.selectionStart=s+before.length;
+  ta.selectionEnd=s+before.length+sel.length;
+}
+</script>
+{% else %}
+<div class="card" style="text-align:center;padding:24px;color:#6b7280">
+  <a href="{{ url_for('login') }}">登录</a> 后才能回复
+</div>
+{% endif %}
+{% endblock %}

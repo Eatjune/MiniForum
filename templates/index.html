@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}首页 - MiniForum{% endblock %}
+{% block body %}
+<div class="mb" style="display:flex;justify-content:space-between;align-items:center">
+  <h2 style="font-size:20px;font-weight:700">全部帖子</h2>
+  {% if current_user %}
+    <a href="{{ url_for('new_post') }}" class="btn">发帖</a>
+  {% endif %}
+</div>
+<div class="card">
+  {% if posts %}
+    {% for p in posts %}
+    <a href="{{ url_for('view_post', post_id=p.id) }}" class="post-link">
+      <div class="post-item">
+        <div class="post-title">{{ p.title }}</div>
+        <div class="post-meta">
+          <span>👤 {{ p.username }}</span>
+          <span>🕐 {{ p.created_at | date }}</span>
+          <span>💬 {{ p.reply_count }} 回复</span>
+        </div>
+        <div class="post-body">{{ p.content | truncate(120) }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <p style="color:#6b7280;text-align:center;padding:40px 0">暂无帖子，来 <a href="{{ url_for('new_post') }}">发第一条</a> 吧</p>
+  {% endif %}
+</div>
+
+{% if total_pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+    <a href="{{ url_for('index', page=page-1) }}">上一页</a>
+  {% endif %}
+  {% for i in range(1, total_pages+1) %}
+    {% if i == page %}
+      <span class="current">{{ i }}</span>
+    {% elif i <= 3 or i > total_pages-3 or (i >= page-1 and i <= page+1) %}
+      <a href="{{ url_for('index', page=i) }}">{{ i }}</a>
+    {% elif i == 4 or i == total_pages-3 %}
+      <span>…</span>
+    {% endif %}
+  {% endfor %}
+  {% if page < total_pages %}
+    <a href="{{ url_for('index', page=page+1) }}">下一页</a>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

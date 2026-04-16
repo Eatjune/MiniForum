@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}管理后台 - MiniForum{% endblock %}
+{% block body %}
+<div style="margin-bottom:20px;display:flex;align-items:center;gap:12px">
+  <h2 style="font-size:20px;font-weight:700">管理后台</h2>
+  <a href="{{ url_for('index') }}" class="btn btn-outline btn-sm">← 返回前台</a>
+</div>
+
+<div style="display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap">
+  <a href="#users" class="btn" onclick="showTab('users')" id="tab-users">👥 用户 ({{ users|length }})</a>
+  <a href="#posts" class="btn btn-outline" onclick="showTab('posts')" id="tab-posts">📝 帖子</a>
+  <a href="#replies" class="btn btn-outline" onclick="showTab('replies')" id="tab-replies">💬 回复</a>
+</div>
+
+<div id="panel-users">
+  <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;color:#374151">用户列表</h3>
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table>
+      <thead><tr>
+        <th>ID</th><th>用户名</th><th>邮箱</th><th>QQ</th><th>注册时间</th><th>角色</th><th>操作</th>
+      </tr></thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>{{ u.email or '-' }}</td>
+        <td>{{ u.qq or '-' }}</td>
+        <td style="font-size:12px;color:#6b7280">{{ u.created_at | date('%Y-%m-%d') }}</td>
+        <td>
+          {% if u.is_admin %}
+            <span class="badge badge-admin">管理员</span>
+          {% else %}
+            <span class="badge badge-normal">普通用户</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="POST" action="{{ url_for('admin_toggle_admin', uid=u.id) }}" style="display:inline">
+            <button type="submit" class="btn btn-outline btn-sm">
+              {{ '取消管理' if u.is_admin else '设为管理' }}
+            </button>
+          </form>
+          {% if u.id != current_user.id %}
+          <form method="POST" action="{{ url_for('admin_delete_user', uid=u.id) }}" style="display:inline" onsubmit="return confirm('删除用户【{{ u.username }}】？其所有帖子和回复也会被删除')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+          {% else %}
+          <button class="btn btn-danger btn-sm" disabled>删除</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="panel-posts" style="display:none">
+  <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;color:#374151">最近帖子</h3>
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table>
+      <thead><tr><th>ID</th><th>标题</th><th>作者</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for p in posts %}
+      <tr>
+        <td>{{ p.id }}</td>
+        <td><a href="{{ url_for('view_post', post_id=p.id) }}">{{ p.title }}</a></td>
+        <td>{{ p.username }}</td>
+        <td style="font-size:12px;color:#6b7280">{{ p.created_at | date }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin_delete_post', pid=p.id) }}" onsubmit="return confirm('删除此帖？')" style="display:inline">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div id="panel-replies" style="display:none">
+  <h3 style="font-size:15px;font-weight:600;margin-bottom:12px;color:#374151">最近回复</h3>
+  <div class="card" style="padding:0;overflow-x:auto">
+    <table>
+      <thead><tr><th>ID</th><th>帖子</th><th>作者</th><th>内容摘要</th><th>时间</th><th>操作</th></tr></thead>
+      <tbody>
+      {% for r in replies %}
+      <tr>
+        <td>{{ r.id }}</td>
+        <td><a href="{{ url_for('view_post', post_id=r.post_id) }}">{{ r.post_title | truncate(20) }}</a></td>
+        <td>{{ r.username }}</td>
+        <td style="font-size:12px;color:#6b7280">{{ r.content | truncate(30) }}</td>
+        <td style="font-size:12px;color:#6b7280">{{ r.created_at | date }}</td>
+        <td>
+          <form method="POST" action="{{ url_for('admin_delete_reply', rid=r.id) }}" onsubmit="return confirm('删除此回复？')" style="display:inline">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function showTab(name) {
+  document.getElementById('panel-users').style.display = name === 'users' ? '' : 'none';
+  document.getElementById('panel-posts').style.display = name === 'posts' ? '' : 'none';
+  document.getElementById('panel-replies').style.display = name === 'replies' ? '' : 'none';
+  document.getElementById('tab-users').className = name === 'users' ? 'btn' : 'btn btn-outline';
+  document.getElementById('tab-posts').className = name === 'posts' ? 'btn' : 'btn btn-outline';
+  document.getElementById('tab-replies').className = name === 'replies' ? 'btn' : 'btn btn-outline';
+}
+// hash tab on load
+if (location.hash === '#posts') showTab('posts');
+else if (location.hash === '#replies') showTab('replies');
+</script>
+{% endblock %}
