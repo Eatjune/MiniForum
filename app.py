@@ -134,11 +134,11 @@ def init_db():
         print(f"初始化数据库错误: {e}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
 
-# Try to init pool at module load
+# 初始化数据库表（启动时执行）
 try:
-    init_pool()
-except:
-    pass
+    init_db()
+except Exception as e:
+    print(f"数据库初始化警告: {e}", file=sys.stderr)
 
 # ─── 错误处理 ──────────────────────────────────────────────
 
