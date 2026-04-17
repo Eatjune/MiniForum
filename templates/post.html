@@ -18,11 +18,16 @@
     <span>🕐 {{ post.created_at | date }}</span>
   </div>
   <div class="post-content" style="padding:16px 0;border-top:1px solid #e5e7eb">{{ post.content | markdown | safe }}</div>
-  {% if current_user and current_user.is_admin %}
-  <div style="margin-top:16px;text-align:right">
+  {% if current_user and (current_user.is_admin or current_user.id == post.user_id) %}
+  <div style="margin-top:16px;text-align:right;display:flex;gap:8px;justify-content:flex-end">
+    {% if current_user.id == post.user_id %}
+    <a href="{{ url_for('edit_post', pid=post.id) }}" class="btn btn-outline btn-sm">编辑帖子</a>
+    {% endif %}
+    {% if current_user.is_admin %}
     <form method="POST" action="{{ url_for('admin_delete_post', pid=post.id) }}" onsubmit="return confirm('确定删除此帖？')">
       <button type="submit" class="btn btn-danger btn-sm">删除此帖</button>
     </form>
+    {% endif %}
   </div>
   {% endif %}
 </div>

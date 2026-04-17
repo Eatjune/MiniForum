@@ -98,8 +98,8 @@ tr:hover{background:#f9fafb}
   </div>
   <div class="user-area">
     {% if current_user %}
-      <a href="{{ url_for('notifications') }}" id="nav-notifs" title="通知">
-        回复<span id="notif-badge" style="display:none;background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:99px;vertical-align:top;margin-left:2px">0</span>
+      <a href="{{ url_for('my_page') }}" id="nav-notifs" title="我的">
+        我的<span id="notif-badge" style="display:none;background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:99px;vertical-align:top;margin-left:2px">0</span>
       </a>
       <a href="{{ url_for('profile') }}">个人</a>
       {% if current_user.is_admin %}

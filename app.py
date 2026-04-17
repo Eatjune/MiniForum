@@ -390,30 +390,60 @@ def logout():
     flash('已退出登录', 'info')
     return redirect(url_for('index'))
 
-# ─── 通知中心 ──────────────────────────────────────────────
+# ─── 我的页面 ──────────────────────────────────────────────
 
-@app.route('/notifications')
+@app.route('/my')
 @login_required
-def notifications():
-    notifs = query_all(
-        '''SELECT n.*, u.username AS from_username, p.title AS post_title
-           FROM notifications n
-           JOIN users u ON n.from_user_id=u.id
-           JOIN posts p ON n.post_id=p.id
-           WHERE n.user_id=%s
-           ORDER BY n.created_at DESC
-           LIMIT 50''',
+def my_page():
+    my_posts = query_all(
+        '''SELECT p.*, u.username,
+                  (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count
+           FROM posts p JOIN users u ON p.user_id=u.id
+           WHERE p.user_id=%s
+           ORDER BY p.created_at DESC''',
         (session['user_id'],)
     )
-    unread = query_one('SELECT COUNT(*) FROM notifications WHERE user_id=%s AND is_read=0', (session['user_id'],))
-    return render_template('notifications.html', notifications=notifs, unread_count=unread['count'] if unread else 0)
+    my_replies = query_all(
+        '''SELECT r.*, p.title AS post_title, p.id AS post_id,
+                  u.username AS replier_username
+           FROM replies r
+           JOIN posts p ON r.post_id=p.id
+           JOIN users u ON r.user_id=u.id
+           WHERE r.user_id=%s
+           ORDER BY r.created_at DESC
+           LIMIT 100''',
+        (session['user_id'],)
+    )
+    return render_template('my.html', my_posts=my_posts, my_replies=my_replies)
 
-@app.route('/notifications/read')
+@app.route('/edit/<int:pid>', methods=['GET', 'POST'])
 @login_required
-def notifications_read():
-    """标记所有通知为已读"""
-    execute('UPDATE notifications SET is_read=1 WHERE user_id=%s', (session['user_id'],))
-    return redirect(url_for('notifications'))
+def edit_post(pid):
+    post = query_one('SELECT * FROM posts WHERE id=%s', (pid,))
+    if not post:
+        abort(404)
+    if post['user_id'] != session['user_id']:
+        abort(403)
+    if request.method == 'POST':
+        title = request.form.get('title', '').strip()
+        content = request.form.get('content', '').strip()
+        if not title or not content:
+            flash('标题和内容不能为空', 'error')
+        else:
+            execute('UPDATE posts SET title=%s, content=%s WHERE id=%s',
+                    (title, content, pid))
+            flash('帖子已更新', 'success')
+            return redirect(url_for('view_post', post_id=pid))
+    return render_template('edit_post.html', post=post)
+
+@app.route('/delete_post/<int:pid>', methods=['POST'])
+@login_required
+def delete_post(pid):
+    post = query_one('SELECT user_id FROM posts WHERE id=%s', (pid,))
+    if post and post['user_id'] == session['user_id']:
+        execute('DELETE FROM posts WHERE id=%s', (pid,))
+        flash('帖子已删除', 'success')
+    return redirect(url_for('my_page'))
 
 @app.route('/api/notifications/count')
 @login_required

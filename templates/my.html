@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}我的 - MiniForum{% endblock %}
+{% block body %}
+<style>
+.tab-btn{padding:8px 20px;border:1px solid #d1d5db;background:#fff;border-radius:6px 0 0 6px;cursor:pointer;font-size:14px;margin-bottom:0}
+.tab-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.tab-btn2{border-radius:0 6px 6px 0;margin-left:-1px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.post-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f3f4f6;gap:12px}
+.post-row:last-child{border-bottom:none}
+.post-row-title{flex:1;min-width:0}
+.post-row-title a{font-size:15px;font-weight:500;color:#1f2937}
+.post-row-title a:hover{color:#2563eb}
+.post-row-meta{font-size:12px;color:#9ca3af;margin-top:2px}
+.reply-row{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid #f3f4f6;align-items:flex-start}
+.reply-row:last-child{border-bottom:none}
+.reply-arrow{color:#9ca3af;font-size:13px;margin-top:2px;white-space:nowrap}
+.reply-content{flex:1;min-width:0}
+.reply-content-text{font-size:14px;color:#374151;line-height:1.6}
+.reply-post-link{font-size:12px;color:#6b7280;margin-top:4px}
+</style>
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <h2 style="font-size:20px;font-weight:700">我的</h2>
+</div>
+
+<div style="margin-bottom:16px;display:flex">
+  <button class="tab-btn active" id="tab-btn-posts" onclick="showTab('posts')">我的帖子 ({{ my_posts|length }})</button>
+  <button class="tab-btn tab-btn2" id="tab-btn-replies" onclick="showTab('replies')">我的回复 ({{ my_replies|length }})</button>
+</div>
+
+<div id="panel-posts" class="tab-panel active">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="padding:10px 14px;border-radius:6px;margin-bottom:16px;background:{{ '#fee2e2' if cat=='error' else '#d1fae5' }};color:{{ '#991b1b' if cat=='error' else '#065f46' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  <div class="card" style="padding:4px 20px">
+    {% if my_posts %}
+      {% for p in my_posts %}
+      <div class="post-row">
+        <div class="post-row-title">
+          <a href="{{ url_for('view_post', post_id=p.id) }}">{{ p.title | truncate(50) }}</a>
+          <div class="post-row-meta">
+            💬 {{ p.reply_count }} 回复 · {{ p.created_at | date('%Y-%m-%d') }}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0">
+          <a href="{{ url_for('edit_post', pid=p.id) }}" class="btn btn-outline btn-sm">编辑</a>
+          <form method="POST" action="{{ url_for('delete_post', pid=p.id) }}" onsubmit="return confirm('确定删除此帖？删除后不可恢复')">
+            <button type="submit" class="btn btn-danger btn-sm">删除</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="text-align:center;color:#9ca3af;padding:40px 0">还没有发帖，快去 <a href="{{ url_for('new_post') }}">发布一篇</a> 吧</p>
+    {% endif %}
+  </div>
+</div>
+
+<div id="panel-replies" class="tab-panel">
+  <div class="card" style="padding:4px 20px">
+    {% if my_replies %}
+      {% for r in my_replies %}
+      <div class="reply-row">
+        <div class="reply-arrow">↳ 回复</div>
+        <div class="reply-content">
+          <div class="reply-content-text">{{ r.content | truncate(120) }}</div>
+          <div class="reply-post-link">
+            发表于帖子 <a href="{{ url_for('view_post', post_id=r.post_id) }}#reply-{{ r.id }}">「{{ r.post_title | truncate(30) }}」</a>
+            · {{ r.created_at | date('%Y-%m-%d') }}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="text-align:center;color:#9ca3af;padding:40px 0">还没有回复过任何帖子</p>
+    {% endif %}
+  </div>
+</div>
+
+<script>
+function showTab(name){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.getElementById('tab-btn-'+name).classList.add('active');
+}
+</script>
+{% endblock %}

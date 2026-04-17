@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}编辑帖子 - MiniForum{% endblock %}
+{% block body %}
+<div style="margin-bottom:20px">
+  <a href="{{ url_for('my_page') }}" style="font-size:14px;color:#6b7280">← 返回我的</a>
+</div>
+<h2 style="font-size:20px;font-weight:700;margin-bottom:20px">编辑帖子</h2>
+<div class="card">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+      <div style="padding:10px 14px;border-radius:6px;margin-bottom:16px;background:{{ '#fee2e2' if cat=='error' else '#d1fae5' }};color:{{ '#991b1b' if cat=='error' else '#065f46' }}">{{ msg }}</div>
+    {% endfor %}
+  {% endwith %}
+  <form method="POST">
+    <div class="form-group">
+      <label>标题</label>
+      <input type="text" name="title" maxlength="200" placeholder="帖子标题" value="{{ post.title }}" required>
+    </div>
+    <div class="form-group">
+      <label>内容 <span style="font-weight:400;color:#6b7280">(支持 Markdown)</span></label>
+      <div class="md-toolbar">
+        <button type="button" onclick="insertMd('**','**')" title="粗体"><b>B</b></button>
+        <button type="button" onclick="insertMd('*','*')" title="斜体"><i>I</i></button>
+        <button type="button" onclick="insertMd('`','`')" title="代码">&lt;/&gt;</button>
+        <button type="button" onclick="insertMd('\n```\n','\n```\n')" title="代码块">{ }</button>
+        <button type="button" onclick="insertMd('[','](url)')" title="链接">🔗</button>
+        <button type="button" onclick="insertMd('\n- ','')" title="列表">•</button>
+        <button type="button" onclick="insertMd('\n> ','')" title="引用">"</button>
+        <button type="button" onclick="insertMd('\n### ','')" title="标题">H</button>
+      </div>
+      <textarea name="content" id="md-editor" rows="12" placeholder="支持 Markdown 语法…" required style="resize:vertical">{{ post.content }}</textarea>
+    </div>
+    <button type="submit" class="btn">保存修改</button>
+    <a href="{{ url_for('view_post', post_id=post.id) }}" class="btn btn-outline" style="margin-left:10px">取消</a>
+  </form>
+</div>
+<script>
+function insertMd(before,after){
+  var ta=document.getElementById('md-editor');
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  var v=ta.value,sel=v.substring(s,e);
+  ta.value=v.substring(0,s)+before+sel+after+v.substring(e);
+  ta.focus();
+  ta.selectionStart=s+before.length;
+  ta.selectionEnd=s+before.length+sel.length;
+}
+</script>
+{% endblock %}
