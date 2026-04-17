@@ -89,6 +89,20 @@
         <button type="button" onclick="insertMd('\n- ','')" title="列表">•</button>
         <button type="button" onclick="insertMd('\n> ','')" title="引用">"</button>
         <button type="button" onclick="insertMd('\n### ','')" title="标题">H</button>
+        <button type="button" onclick="toggleEmoji('md-editor')" title="表情" class="emoji-btn">😀
+          <div class="emoji-panel" id="emoji-panel-md-editor">
+            <span onclick="insertEmoji('md-editor','😀')">😀</span><span onclick="insertEmoji('md-editor','😂')">😂</span><span onclick="insertEmoji('md-editor','🤣')">🤣</span><span onclick="insertEmoji('md-editor','😃')">😃</span><span onclick="insertEmoji('md-editor','😄')">😄</span><span onclick="insertEmoji('md-editor','😅')">😅</span><span onclick="insertEmoji('md-editor','😆')">😆</span><span onclick="insertEmoji('md-editor','😉')">😉</span>
+            <span onclick="insertEmoji('md-editor','😊')">😊</span><span onclick="insertEmoji('md-editor','😋')">😋</span><span onclick="insertEmoji('md-editor','😎')">😎</span><span onclick="insertEmoji('md-editor','😍')">😍</span><span onclick="insertEmoji('md-editor','🥰')">🥰</span><span onclick="insertEmoji('md-editor','😘')">😘</span><span onclick="insertEmoji('md-editor','🤗')">🤗</span><span onclick="insertEmoji('md-editor','🤔')">🤔</span>
+            <span onclick="insertEmoji('md-editor','🤨')">🤨</span><span onclick="insertEmoji('md-editor','😐')">😐</span><span onclick="insertEmoji('md-editor','😑')">😑</span><span onclick="insertEmoji('md-editor','😶')">😶</span><span onclick="insertEmoji('md-editor','🙄')">🙄</span><span onclick="insertEmoji('md-editor','😏')">😏</span><span onclick="insertEmoji('md-editor','😣')">😣</span><span onclick="insertEmoji('md-editor','😥')">😥</span>
+            <span onclick="insertEmoji('md-editor','😮')">😮</span><span onclick="insertEmoji('md-editor','🤐')">🤐</span><span onclick="insertEmoji('md-editor','😯')">😯</span><span onclick="insertEmoji('md-editor','😪')">😪</span><span onclick="insertEmoji('md-editor','😫')">😫</span><span onclick="insertEmoji('md-editor','🥱')">🥱</span><span onclick="insertEmoji('md-editor','😴')">😴</span><span onclick="insertEmoji('md-editor','😌')">😌</span>
+            <span onclick="insertEmoji('md-editor','😛')">😛</span><span onclick="insertEmoji('md-editor','😜')">😜</span><span onclick="insertEmoji('md-editor','😝')">😝</span><span onclick="insertEmoji('md-editor','🤤')">🤤</span><span onclick="insertEmoji('md-editor','😒')">😒</span><span onclick="insertEmoji('md-editor','😓')">😓</span><span onclick="insertEmoji('md-editor','😔')">😔</span><span onclick="insertEmoji('md-editor','😕')">😕</span>
+            <span onclick="insertEmoji('md-editor','🙃')">🙃</span><span onclick="insertEmoji('md-editor','🤑')">🤑</span><span onclick="insertEmoji('md-editor','😲')">😲</span><span onclick="insertEmoji('md-editor','🙁')">🙁</span><span onclick="insertEmoji('md-editor','😖')">😖</span><span onclick="insertEmoji('md-editor','😞')">😞</span><span onclick="insertEmoji('md-editor','😟')">😟</span><span onclick="insertEmoji('md-editor','😤')">😤</span>
+            <span onclick="insertEmoji('md-editor','😢')">😢</span><span onclick="insertEmoji('md-editor','😭')">😭</span><span onclick="insertEmoji('md-editor','😦')">😦</span><span onclick="insertEmoji('md-editor','😧')">😧</span><span onclick="insertEmoji('md-editor','😨')">😨</span><span onclick="insertEmoji('md-editor','😩')">😩</span><span onclick="insertEmoji('md-editor','🤯')">🤯</span><span onclick="insertEmoji('md-editor','😬')">😬</span>
+            <span onclick="insertEmoji('md-editor','😰')">😰</span><span onclick="insertEmoji('md-editor','😱')">😱</span><span onclick="insertEmoji('md-editor','🥵')">🥵</span><span onclick="insertEmoji('md-editor','🥶')">🥶</span><span onclick="insertEmoji('md-editor','😳')">😳</span><span onclick="insertEmoji('md-editor','🤪')">🤪</span><span onclick="insertEmoji('md-editor','😵')">😵</span><span onclick="insertEmoji('md-editor','🥴')">🥴</span>
+            <span onclick="insertEmoji('md-editor','😠')">😠</span><span onclick="insertEmoji('md-editor','😡')">😡</span><span onclick="insertEmoji('md-editor','🤬')">🤬</span><span onclick="insertEmoji('md-editor','😷')">😷</span><span onclick="insertEmoji('md-editor','🤒')">🤒</span><span onclick="insertEmoji('md-editor','🤕')">🤕</span><span onclick="insertEmoji('md-editor','🤢')">🤢</span><span onclick="insertEmoji('md-editor','🤮')">🤮</span>
+            <span onclick="insertEmoji('md-editor','👍')">👍</span><span onclick="insertEmoji('md-editor','👎')">👎</span><span onclick="insertEmoji('md-editor','👏')">👏</span><span onclick="insertEmoji('md-editor','🙏')">🙏</span><span onclick="insertEmoji('md-editor','💪')">💪</span><span onclick="insertEmoji('md-editor','🎉')">🎉</span><span onclick="insertEmoji('md-editor','🔥')">🔥</span><span onclick="insertEmoji('md-editor','💯')">💯</span>
+          </div>
+        </button>
       </div>
       <textarea name="content" id="md-editor" rows="5" placeholder="支持 Markdown 语法…" required style="resize:vertical"></textarea>
     </div>
@@ -105,6 +119,24 @@ function insertMd(before,after){
   ta.selectionStart=s+before.length;
   ta.selectionEnd=s+before.length+sel.length;
 }
+function toggleEmoji(editorId){
+  var panel=document.getElementById('emoji-panel-'+editorId);
+  panel.classList.toggle('show');
+}
+function insertEmoji(editorId,emoji){
+  var ta=document.getElementById(editorId);
+  var s=ta.selectionStart,e=ta.selectionEnd;
+  var v=ta.value;
+  ta.value=v.substring(0,s)+emoji+v.substring(e);
+  ta.focus();
+  ta.selectionStart=ta.selectionEnd=s+emoji.length;
+  document.getElementById('emoji-panel-'+editorId).classList.remove('show');
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.emoji-btn')){
+    document.querySelectorAll('.emoji-panel').forEach(p=>p.classList.remove('show'));
+  }
+});
 function toggleReplyForm(id){
   var f=document.getElementById('reply-form-'+id);
   f.style.display=f.style.display==='none'?'block':'none';
