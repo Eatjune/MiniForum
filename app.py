@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """MiniForum - 轻量级论坛 (Supabase PostgreSQL)"""
 import os
-import re
-import secrets
+import sys
+import traceback
 from datetime import datetime
 from functools import wraps
 
@@ -13,25 +13,56 @@ from flask import (
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2 import pool
 import mistune
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', secrets.token_hex(32))
+app.secret_key = os.environ.get('SECRET_KEY', 'miniforum-default-secret')
 
-# Supabase PostgreSQL connection
-DATABASE_URL = os.environ.get('DATABASE_URL')
+# Supabase PostgreSQL connection pool
+DATABASE_URL = os.environ.get('DATABASE_URL', '')
+
+# Connection pool - more suitable for serverless
+_db_pool = None
+
+def init_pool():
+    global _db_pool
+    if _db_pool is None and DATABASE_URL:
+        try:
+            # Supabase requires SSL
+            _db_pool = pool.ThreadedConnectionPool(
+                minconn=1,
+                maxconn=3,
+                dsn=DATABASE_URL,
+                connect_timeout=10,
+                options='-c sslmode=require'
+            )
+            print("Database pool initialized", file=sys.stderr)
+        except Exception as e:
+            print(f"Pool init error: {e}", file=sys.stderr)
+            _db_pool = None
+    return _db_pool
 
 def get_db():
     """获取数据库连接"""
     if 'db' not in g:
-        g.db = psycopg2.connect(DATABASE_URL, cursor_factory=RealDictCursor)
+        p = init_pool()
+        if p:
+            try:
+                g.db = p.getconn()
+            except Exception as e:
+                print(f"Get connection error: {e}", file=sys.stderr)
+                raise
+        else:
+            raise Exception("Database pool not initialized")
     return g.db
 
 @app.teardown_appcontext
 def close_db(e=None):
     db = g.pop('db', None)
-    if db:
-        db.close()
+    p = init_pool()
+    if db and p:
+        p.putconn(db)
 
 # Markdown 渲染器
 md = mistune.create_markdown(escape=False, plugins=['strikethrough', 'footnotes', 'table'])
@@ -39,12 +70,12 @@ md = mistune.create_markdown(escape=False, plugins=['strikethrough', 'footnotes'
 # ─── 数据库工具 ────────────────────────────────────────────
 
 def query_one(sql, args=()):
-    cur = get_db().cursor()
+    cur = get_db().cursor(cursor_factory=RealDictCursor)
     cur.execute(sql, args)
     return cur.fetchone()
 
 def query_all(sql, args=()):
-    cur = get_db().cursor()
+    cur = get_db().cursor(cursor_factory=RealDictCursor)
     cur.execute(sql, args)
     return cur.fetchall()
 
@@ -103,10 +134,22 @@ def init_db():
                 ('admin', generate_password_hash('admin123'))
             )
     except Exception as e:
-        print(f"初始化数据库: {e}")
+        print(f"初始化数据库错误: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
 
-with app.app_context():
-    init_db()
+# Try to init pool at module load
+try:
+    init_pool()
+except:
+    pass
+
+# ─── 错误处理 ──────────────────────────────────────────────
+
+@app.errorhandler(500)
+def internal_error(e):
+    print(f"500 Error: {e}", file=sys.stderr)
+    traceback.print_exc(file=sys.stderr)
+    return f"Server Error: {e}", 500
 
 # ─── 认证装饰器 ────────────────────────────────────────────
 
@@ -159,30 +202,38 @@ def truncate_filter(s, n=100):
 def inject_user():
     user = None
     if 'user_id' in session:
-        user = query_one('SELECT * FROM users WHERE id=%s', (session['user_id'],))
+        try:
+            user = query_one('SELECT * FROM users WHERE id=%s', (session['user_id'],))
+        except:
+            pass
     return dict(current_user=user, now_year=datetime.now().year)
 
 # ─── 路由 ──────────────────────────────────────────────────
 
 @app.route('/')
 def index():
-    page = max(1, int(request.args.get('page', 1)))
-    per_page = 20
-    offset = (page - 1) * per_page
-    total = query_one('SELECT COUNT(*) FROM posts')[0]
-    
-    posts = query_all(
-        '''SELECT p.*, u.username,
-                  (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count
-           FROM posts p JOIN users u ON p.user_id=u.id
-           ORDER BY p.created_at DESC
-           LIMIT %s OFFSET %s''',
-        (per_page, offset)
-    )
-    total_pages = (total + per_page - 1) // per_page
-    return render_template('index.html',
-        posts=posts, page=page, total_pages=total_pages
-    )
+    try:
+        page = max(1, int(request.args.get('page', 1)))
+        per_page = 20
+        offset = (page - 1) * per_page
+        total = query_one('SELECT COUNT(*) FROM posts')[0]
+        
+        posts = query_all(
+            '''SELECT p.*, u.username,
+                      (SELECT COUNT(*) FROM replies r WHERE r.post_id=p.id) AS reply_count
+               FROM posts p JOIN users u ON p.user_id=u.id
+               ORDER BY p.created_at DESC
+               LIMIT %s OFFSET %s''',
+            (per_page, offset)
+        )
+        total_pages = (total + per_page - 1) // per_page
+        return render_template('index.html',
+            posts=posts, page=page, total_pages=total_pages
+        )
+    except Exception as e:
+        print(f"Index error: {e}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return f"Error loading posts: {e}", 500
 
 @app.route('/post/<int:post_id>', methods=['GET', 'POST'])
 def view_post(post_id):
