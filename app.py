@@ -407,6 +407,30 @@ def admin_toggle_admin(uid):
             flash('权限已更新', 'success')
     return redirect(url_for('admin'))
 
+# ─── 调试路由 ──────────────────────────────────────────────
+
+@app.route('/debug')
+def debug():
+    """调试端点 - 检查环境变量和数据库连接"""
+    import json
+    info = {
+        'DATABASE_URL': '***' if DATABASE_URL else 'NOT SET',
+        'SECRET_KEY': '***' if app.secret_key else 'NOT SET',
+        'DB_POOL': 'initialized' if _db_pool else 'NOT initialized',
+        'pool_size': _db_pool.statistics() if _db_pool else None
+    }
+    return json.dumps(info, indent=2)
+
+@app.route('/test')
+def test_db():
+    """测试数据库连接"""
+    try:
+        result = query_one('SELECT NOW() as now')
+        return f"数据库连接成功: {result['now']}"
+    except Exception as e:
+        import traceback
+        return f"数据库错误: {e}\n\n{traceback.format_exc()}", 500
+
 # Vercel serverless function handler
 def handler(environ, start_response):
     return app(environ, start_response)
