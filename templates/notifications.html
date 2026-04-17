@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}通知 - MiniForum{% endblock %}
+{% block body %}
+<style>
+.notif-item{padding:14px 0;border-bottom:1px solid #f3f4f6;display:flex;gap:12px;align-items:flex-start}
+.notif-item:last-child{border-bottom:none}
+.notif-item.unread{background:#eff6ff}
+.notif-dot{width:8px;height:8px;border-radius:50%;background:#dc2626;flex-shrink:0;margin-top:6px}
+.notif-dot.read{background:transparent}
+.notif-body{flex:1}
+.notif-text{font-size:14px;color:#374151;line-height:1.6}
+.notif-text strong{color:#1f2937}
+.notif-time{font-size:12px;color:#9ca3af;margin-top:4px}
+.notif-link{display:block;margin-top:4px;font-size:13px}
+</style>
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+  <h2 style="font-size:20px;font-weight:700">回复通知</h2>
+  {% if unread_count > 0 %}
+  <a href="{{ url_for('notifications_read') }}" class="btn btn-outline btn-sm">全部标为已读</a>
+  {% endif %}
+</div>
+
+<div class="card" style="padding:4px 20px">
+  {% if notifications %}
+    {% for n in notifications %}
+    <div class="notif-item {{ 'unread' if not n.is_read else '' }}" id="notif-{{ n.id }}">
+      <div class="notif-dot {{ 'read' if n.is_read else '' }}"></div>
+      <div class="notif-body">
+        <div class="notif-text">
+          {% if n.type == 'reply_post' %}
+            <strong>{{ n.from_username }}</strong> 回复了你的帖子
+            <a href="{{ url_for('view_post', post_id=n.post_id) }}">「{{ n.post_title | truncate(20) }}」</a>
+          {% elif n.type == 'reply_reply' %}
+            <strong>{{ n.from_username }}</strong> 回复了你的回复
+            <a href="{{ url_for('view_post', post_id=n.post_id) }}#reply-{{ n.reply_id }}">「{{ n.post_title | truncate(20) }}」</a>
+          {% endif %}
+        </div>
+        <div class="notif-time">{{ n.created_at | date }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <p style="text-align:center;color:#9ca3af;padding:40px 0">暂无通知</p>
+  {% endif %}
+</div>
+<script>
+fetch('/notifications/read',{method:'POST'}).then(()=>{
+  let badge=document.getElementById('notif-badge');
+  if(badge)badge.style.display='none';
+});
+</script>
+{% endblock %}

@@ -9,7 +9,7 @@ from functools import wraps
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
-    session, flash, g, abort, Response
+    session, flash, g, abort, Response, jsonify
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2
@@ -114,14 +114,31 @@ def init_db():
             id         SERIAL PRIMARY KEY,
             post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
             user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            parent_id  INTEGER REFERENCES replies(id) ON DELETE CASCADE,
             content    TEXT    NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+        
+        execute('''
+        CREATE TABLE IF NOT EXISTS notifications (
+            id          SERIAL PRIMARY KEY,
+            user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            type        TEXT    NOT NULL,
+            from_user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            post_id     INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+            reply_id    INTEGER REFERENCES replies(id) ON DELETE CASCADE,
+            is_read     INTEGER DEFAULT 0,
+            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
         
         execute('CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)')
         execute('CREATE INDEX IF NOT EXISTS idx_posts_time ON posts(created_at DESC)')
         execute('CREATE INDEX IF NOT EXISTS idx_replies_post ON replies(post_id)')
+        execute('CREATE INDEX IF NOT EXISTS idx_replies_parent ON replies(parent_id)')
+        execute('CREATE INDEX IF NOT EXISTS idx_notifs_user ON notifications(user_id)')
+        execute('CREATE INDEX IF NOT EXISTS idx_notifs_read ON notifications(user_id, is_read)')
         
         # 创建默认管理员
         existing = query_one('SELECT id FROM users WHERE username=%s', ('admin',))
@@ -250,12 +267,27 @@ def view_post(post_id):
             return redirect(url_for('login'))
         content = request.form.get('content', '').strip()
         if content:
+            parent_id = request.form.get('parent_id')
+            parent_id = int(parent_id) if parent_id else None
             execute(
-                'INSERT INTO replies (post_id, user_id, content) VALUES (%s, %s, %s)',
-                (post_id, session['user_id'], content)
+                'INSERT INTO replies (post_id, user_id, parent_id, content) VALUES (%s, %s, %s, %s)',
+                (post_id, session['user_id'], parent_id, content)
             )
+            # 通知：回复帖子 或 回复别人的回复
+            reply_author = post['user_id']
+            notif_type = 'reply_post'
+            if parent_id:
+                parent = query_one('SELECT user_id FROM replies WHERE id=%s', (parent_id,))
+                if parent:
+                    reply_author = parent['user_id']
+                    notif_type = 'reply_reply'
+            if reply_author != session['user_id']:
+                execute(
+                    'INSERT INTO notifications (user_id, type, from_user_id, post_id, reply_id) VALUES (%s, %s, %s, %s, %s)',
+                    (reply_author, notif_type, session['user_id'], post_id, None)
+                )
             flash('回复成功', 'success')
-        return redirect(url_for('view_post', post_id=post_id))
+        return redirect(url_for('view_post', post_id=post_id) + '#reply-' + str(parent_id or ''))
 
     replies = query_all(
         '''SELECT r.*, u.username
@@ -263,7 +295,20 @@ def view_post(post_id):
            WHERE r.post_id=%s ORDER BY r.created_at''',
         (post_id,)
     )
-    return render_template('post.html', post=post, replies=replies)
+    # 构建嵌套树结构
+    top_replies = []
+    children_map = {}
+    for r in replies:
+        r['children'] = []
+        children_map[r['id']] = r
+    for r in replies:
+        if r['parent_id']:
+            parent = children_map.get(r['parent_id'])
+            if parent:
+                parent['children'].append(r)
+        else:
+            top_replies.append(r)
+    return render_template('post.html', post=post, replies=replies, top_replies=top_replies)
 
 @app.route('/new', methods=['GET', 'POST'])
 @login_required
@@ -344,6 +389,78 @@ def logout():
     session.clear()
     flash('已退出登录', 'info')
     return redirect(url_for('index'))
+
+# ─── 通知中心 ──────────────────────────────────────────────
+
+@app.route('/notifications')
+@login_required
+def notifications():
+    notifs = query_all(
+        '''SELECT n.*, u.username AS from_username, p.title AS post_title
+           FROM notifications n
+           JOIN users u ON n.from_user_id=u.id
+           JOIN posts p ON n.post_id=p.id
+           WHERE n.user_id=%s
+           ORDER BY n.created_at DESC
+           LIMIT 50''',
+        (session['user_id'],)
+    )
+    unread = query_one('SELECT COUNT(*) FROM notifications WHERE user_id=%s AND is_read=0', (session['user_id'],))
+    return render_template('notifications.html', notifications=notifs, unread_count=unread['count'] if unread else 0)
+
+@app.route('/notifications/read')
+@login_required
+def notifications_read():
+    """标记所有通知为已读"""
+    execute('UPDATE notifications SET is_read=1 WHERE user_id=%s', (session['user_id'],))
+    return redirect(url_for('notifications'))
+
+@app.route('/api/notifications/count')
+@login_required
+def notifications_count():
+    count = query_one(
+        'SELECT COUNT(*) FROM notifications WHERE user_id=%s AND is_read=0',
+        (session['user_id'],)
+    )
+    return jsonify({'count': count['count'] if count else 0})
+
+# ─── 个人中心 ──────────────────────────────────────────────
+
+@app.route('/profile', methods=['GET', 'POST'])
+@login_required
+def profile():
+    user = query_one('SELECT id, username, email, qq, is_admin, created_at FROM users WHERE id=%s', (session['user_id'],))
+    if request.method == 'POST':
+        action = request.form.get('action')
+        if action == 'change_password':
+            old_pw = request.form.get('old_password', '')
+            new_pw = request.form.get('new_password', '')
+            new_pw2 = request.form.get('new_password2', '')
+            if not check_password_hash(user['password_hash'], old_pw):
+                flash('原密码错误', 'error')
+            elif len(new_pw) < 6:
+                flash('新密码至少6位', 'error')
+            elif new_pw != new_pw2:
+                flash('两次密码不一致', 'error')
+            else:
+                execute('UPDATE users SET password_hash=%s WHERE id=%s',
+                        (generate_password_hash(new_pw), session['user_id']))
+                flash('密码修改成功', 'success')
+        elif action == 'update_info':
+            email = request.form.get('email', '').strip()
+            qq = request.form.get('qq', '').strip()
+            existing_email = query_one('SELECT id FROM users WHERE email=%s AND id!=%s', (email, session['user_id']))
+            existing_qq = query_one('SELECT id FROM users WHERE qq=%s AND id!=%s', (qq, session['user_id']))
+            if email and existing_email:
+                flash('邮箱已被使用', 'error')
+            elif qq and existing_qq:
+                flash('QQ号已被使用', 'error')
+            else:
+                execute('UPDATE users SET email=%s, qq=%s WHERE id=%s',
+                        (email or None, qq or None, session['user_id']))
+                flash('个人信息更新成功', 'success')
+        return redirect(url_for('profile'))
+    return render_template('profile.html', user=user)
 
 # ─── 管理后台 ──────────────────────────────────────────────
 

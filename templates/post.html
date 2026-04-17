@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block title %}{{ post.title }} - MiniForum{% endblock %}
 {% block body %}
+<style>
+.reply-children{margin-left:32px;padding-left:16px;border-left:2px solid #e5e7eb}
+.reply-action{margin-top:6px;font-size:13px;display:flex;gap:10px;align-items:center}
+.reply-action a{color:#6b7280;cursor:pointer;font-size:12px}
+.reply-action a:hover{color:#2563eb}
+.reply-form{margin-top:8px;padding:12px;background:#f9fafb;border-radius:6px}
+</style>
 <div style="margin-bottom:20px">
   <a href="{{ url_for('index') }}" style="font-size:14px;color:#6b7280">← 返回首页</a>
 </div>
@@ -21,10 +28,10 @@
 </div>
 
 <h3 style="font-size:16px;font-weight:600;margin:24px 0 16px">💬 回复 ({{ replies|length }})</h3>
-<div class="card">
+<div class="card" id="replies-list">
   {% if replies %}
-    {% for r in replies %}
-    <div class="reply-item">
+    {%- macro render_reply(r, depth=0) %}
+    <div class="reply-item" id="reply-{{ r.id }}" style="margin-left:{{ depth * 24 }}px">
       <div class="reply-meta">
         <strong>{{ r.username }}</strong>
         <span style="margin-left:10px">{{ r.created_at | date }}</span>
@@ -35,7 +42,29 @@
         {% endif %}
       </div>
       <div class="reply-content" style="font-size:14px">{{ r.content | markdown | safe }}</div>
+      <div class="reply-action">
+        {% if current_user %}
+        <a onclick="toggleReplyForm({{ r.id }})">回复</a>
+        {% endif %}
+      </div>
+      <div id="reply-form-{{ r.id }}" class="reply-form" style="display:none">
+        <form method="POST" onsubmit="return submitReply({{ r.id }}, this)">
+          <input type="hidden" name="parent_id" value="{{ r.id }}">
+          <textarea name="content" rows="3" placeholder="回复 {{ r.username }}…" required style="resize:vertical;margin-bottom:8px"></textarea>
+          <div style="display:flex;gap:8px">
+            <button type="submit" class="btn btn-sm">发送</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="toggleReplyForm({{ r.id }})">取消</button>
+          </div>
+        </form>
+      </div>
+      {% for child in r.children %}
+        {{ render_reply(child, depth+1) }}
+      {% endfor %}
     </div>
+    {% endmacro %}
+
+    {% for r in top_replies %}
+      {{ render_reply(r) }}
     {% endfor %}
   {% else %}
     <p style="color:#9ca3af;text-align:center;padding:20px 0">暂无回复，来说点什么吧</p>
@@ -45,7 +74,8 @@
 {% if current_user %}
 <h3 style="font-size:16px;font-weight:600;margin:24px 0 12px">发表回复</h3>
 <div class="card">
-  <form method="POST">
+  <form method="POST" id="main-reply-form">
+    <input type="hidden" name="parent_id" value="">
     <div class="form-group">
       <div class="md-toolbar">
         <button type="button" onclick="insertMd('**','**')" title="粗体"><b>B</b></button>
@@ -72,6 +102,22 @@ function insertMd(before,after){
   ta.selectionStart=s+before.length;
   ta.selectionEnd=s+before.length+sel.length;
 }
+function toggleReplyForm(id){
+  var f=document.getElementById('reply-form-'+id);
+  f.style.display=f.style.display==='none'?'block':'none';
+}
+function submitReply(id,form){
+  var content=form.querySelector('[name=content]').value;
+  var f=new FormData();
+  f.append('content',content);
+  f.append('parent_id',id);
+  fetch(location.pathname,{method:'POST',body:f,headers:{'X-Requested-With':'XMLHttpRequest'}}).then(r=>location.reload());
+  return false;
+}
+document.getElementById('main-reply-form').onsubmit=function(){
+  var input=this.querySelector('[name=parent_id]');
+  if(input.value)return true;
+};
 </script>
 {% else %}
 <div class="card" style="text-align:center;padding:24px;color:#6b7280">

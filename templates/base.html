@@ -98,7 +98,10 @@ tr:hover{background:#f9fafb}
   </div>
   <div class="user-area">
     {% if current_user %}
-      <span>{{ current_user.username }}</span>
+      <a href="{{ url_for('notifications') }}" id="nav-notifs" title="通知">
+        回复<span id="notif-badge" style="display:none;background:#dc2626;color:#fff;font-size:11px;padding:1px 6px;border-radius:99px;vertical-align:top;margin-left:2px">0</span>
+      </a>
+      <a href="{{ url_for('profile') }}">个人</a>
       {% if current_user.is_admin %}
         <a href="{{ url_for('admin') }}">[管理]</a>
       {% endif %}
@@ -121,5 +124,20 @@ tr:hover{background:#f9fafb}
 <footer style="text-align:center;padding:24px 0;color:#9ca3af;font-size:13px">
   &copy; {{ now_year }} MiniForum
 </footer>
+{% if current_user %}
+<script>
+(async function(){
+  try {
+    let r = await fetch('/api/notifications/count');
+    let d = await r.json();
+    let badge = document.getElementById('notif-badge');
+    if (d.count > 0) {
+      badge.textContent = d.count > 99 ? '99+' : d.count;
+      badge.style.display = 'inline';
+    }
+  } catch(e){}
+})();
+</script>
+{% endif %}
 </body>
 </html>
