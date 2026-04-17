@@ -179,7 +179,7 @@ def markdown_filter(text):
     return md(text)
 
 @app.template_filter('date')
-def date_filter(dt_str):
+def date_filter(dt_str, fmt=None):
     if not dt_str:
         return ''
     try:
@@ -187,6 +187,8 @@ def date_filter(dt_str):
             dt = datetime.strptime(dt_str.split('.')[0], '%Y-%m-%d %H:%M:%S')
         else:
             dt = dt_str
+        if fmt:
+            return dt.strftime(fmt)
         return dt.strftime('%m-%d %H:%M')
     except:
         return str(dt_str)
