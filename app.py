@@ -405,6 +405,24 @@ def admin_toggle_admin(uid):
             flash('权限已更新', 'success')
     return redirect(url_for('admin'))
 
+# ─── 安装路由 ──────────────────────────────────────────────
+
+@app.route('/setup')
+def setup():
+    """初始化数据库并创建管理员账号"""
+    try:
+        init_db()
+        admin = query_one('SELECT id FROM users WHERE username=%s', ('admin',))
+        if not admin:
+            execute(
+                'INSERT INTO users (username, password_hash, is_admin) VALUES (%s, %s, 1)',
+                ('admin', generate_password_hash('admin123'))
+            )
+            return '管理员创建成功！用户名: admin 密码: admin123'
+        return f'管理员已存在 (id={admin["id"]})，数据库初始化完成'
+    except Exception as e:
+        return f'错误: {e}', 500
+
 # ─── 调试路由 ──────────────────────────────────────────────
 
 @app.route('/debug')
