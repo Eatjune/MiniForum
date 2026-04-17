@@ -53,7 +53,23 @@
       <div id="reply-form-{{ r.id }}" class="reply-form" style="display:none">
         <form method="POST" onsubmit="return submitReply({{ r.id }}, this)">
           <input type="hidden" name="parent_id" value="{{ r.id }}">
-          <textarea name="content" rows="3" placeholder="回复 {{ r.username }}…" required style="resize:vertical;margin-bottom:8px"></textarea>
+          <div class="md-toolbar">
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','**','**')" title="粗体"><b>B</b></button>
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','*','*')" title="斜体"><i>I</i></button>
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','`','`')" title="代码">&lt;/&gt;</button>
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','\n```\n','\n```\n')" title="代码块">{ }</button>
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','[','](url)')" title="链接">🔗</button>
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','\n- ','')" title="列表">•</button>
+            <button type="button" onclick="insertMdTo('reply-editor-{{ r.id }}','\n> ','')" title="引用">"</button>
+            <button type="button" onclick="toggleEmoji('reply-editor-{{ r.id }}')" title="表情" class="emoji-btn">😀
+              <div class="emoji-panel" id="emoji-panel-reply-editor-{{ r.id }}">
+                <span onclick="insertEmoji('reply-editor-{{ r.id }}','😀')">😀</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😂')">😂</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🤣')">🤣</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😃')">😃</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😄')">😄</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😅')">😅</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😆')">😆</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😉')">😉</span>
+                <span onclick="insertEmoji('reply-editor-{{ r.id }}','😊')">😊</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😋')">😋</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😎')">😎</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😍')">😍</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🥰')">🥰</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','😘')">😘</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🤗')">🤗</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🤔')">🤔</span>
+                <span onclick="insertEmoji('reply-editor-{{ r.id }}','👍')">👍</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','👎')">👎</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','👏')">👏</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🙏')">🙏</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','💪')">💪</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🎉')">🎉</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','🔥')">🔥</span><span onclick="insertEmoji('reply-editor-{{ r.id }}','💯')">💯</span>
+              </div>
+            </button>
+          </div>
+          <textarea name="content" id="reply-editor-{{ r.id }}" rows="3" placeholder="回复 {{ r.username }}…" required style="resize:vertical;margin-bottom:8px"></textarea>
           <div style="display:flex;gap:8px">
             <button type="submit" class="btn btn-sm">发送</button>
             <button type="button" class="btn btn-outline btn-sm" onclick="toggleReplyForm({{ r.id }})">取消</button>
@@ -111,7 +127,10 @@
 </div>
 <script>
 function insertMd(before,after){
-  var ta=document.getElementById('md-editor');
+  insertMdTo('md-editor', before, after);
+}
+function insertMdTo(editorId, before, after){
+  var ta=document.getElementById(editorId);
   var s=ta.selectionStart,e=ta.selectionEnd;
   var v=ta.value,sel=v.substring(s,e);
   ta.value=v.substring(0,s)+before+sel+after+v.substring(e);
