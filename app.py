@@ -82,6 +82,15 @@ def execute(sql, args=()):
     cur.execute(sql, args)
     db.commit()
 
+def is_admin_user():
+    if 'user_id' not in session:
+        return False
+    try:
+        user = query_one('SELECT is_admin FROM users WHERE id=%s', (session['user_id'],))
+        return user and user['is_admin']
+    except:
+        return False
+
 # ─── 初始化 ────────────────────────────────────────────────
 
 def init_db():
@@ -425,7 +434,19 @@ def my_page():
            LIMIT 100''',
         (session['user_id'],)
     )
-    return render_template('my.html', my_posts=my_posts, my_replies=my_replies)
+    notifications = query_all(
+        '''SELECT n.*, u.username AS from_username, p.title AS post_title
+           FROM notifications n
+           JOIN users u ON n.from_user_id=u.id
+           LEFT JOIN posts p ON n.post_id=p.id
+           WHERE n.user_id=%s
+           ORDER BY n.created_at DESC
+           LIMIT 50''',
+        (session['user_id'],)
+    )
+    # 标记全部已读
+    execute('UPDATE notifications SET is_read=1 WHERE user_id=%s AND is_read=0', (session['user_id'],))
+    return render_template('my.html', my_posts=my_posts, my_replies=my_replies, notifications=notifications)
 
 @app.route('/edit/<int:pid>', methods=['GET', 'POST'])
 @login_required
@@ -451,10 +472,23 @@ def edit_post(pid):
 @login_required
 def delete_post(pid):
     post = query_one('SELECT user_id FROM posts WHERE id=%s', (pid,))
-    if post and post['user_id'] == session['user_id']:
+    if post and (post['user_id'] == session['user_id'] or is_admin_user()):
         execute('DELETE FROM posts WHERE id=%s', (pid,))
         flash('帖子已删除', 'success')
+    else:
+        flash('无权删除', 'error')
     return redirect(url_for('my_page'))
+
+@app.route('/delete_reply/<int:rid>', methods=['POST'])
+@login_required
+def delete_reply(rid):
+    reply = query_one('SELECT r.user_id, r.post_id FROM replies r WHERE r.id=%s', (rid,))
+    if reply and (reply['user_id'] == session['user_id'] or is_admin_user()):
+        execute('DELETE FROM replies WHERE id=%s', (rid,))
+        flash('回复已删除', 'success')
+    else:
+        flash('无权删除', 'error')
+    return redirect(url_for('view_post', post_id=reply['post_id']) if reply else url_for('index'))
 
 @app.route('/api/notifications/count')
 @login_required

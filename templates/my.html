@@ -5,6 +5,7 @@
 .tab-btn{padding:8px 20px;border:1px solid #d1d5db;background:#fff;border-radius:6px 0 0 6px;cursor:pointer;font-size:14px;margin-bottom:0}
 .tab-btn.active{background:#2563eb;color:#fff;border-color:#2563eb}
 .tab-btn2{border-radius:0 6px 6px 0;margin-left:-1px}
+.tab-btn3{border-radius:0 6px 6px 0;margin-left:-1px}
 .tab-panel{display:none}
 .tab-panel.active{display:block}
 .post-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f3f4f6;gap:12px}
@@ -19,6 +20,12 @@
 .reply-content{flex:1;min-width:0}
 .reply-content-text{font-size:14px;color:#374151;line-height:1.6}
 .reply-post-link{font-size:12px;color:#6b7280;margin-top:4px}
+.notif-item{padding:10px 0;border-bottom:1px solid #f3f4f6;font-size:14px}
+.notif-item:last-child{border-bottom:none}
+.notif-item.unread{background:#eff6ff;border-radius:4px;padding:10px 12px;margin:0 -12px}
+.notif-item .notif-text{color:#374151}
+.notif-item .notif-time{font-size:12px;color:#9ca3af;margin-top:4px}
+.notif-item.unread .notif-text{font-weight:600;color:#1e3a5f}
 </style>
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
@@ -28,14 +35,13 @@
 <div style="margin-bottom:16px;display:flex">
   <button class="tab-btn active" id="tab-btn-posts" onclick="showTab('posts')">我的帖子 ({{ my_posts|length }})</button>
   <button class="tab-btn tab-btn2" id="tab-btn-replies" onclick="showTab('replies')">我的回复 ({{ my_replies|length }})</button>
+  <button class="tab-btn tab-btn3" id="tab-btn-notifs" onclick="showTab('notifs')">
+    {% set unread = notifications|selectattr('is_read','eq',0)|list %}
+    通知{% if unread %} ({{ unread|length }}){% endif %}
+  </button>
 </div>
 
 <div id="panel-posts" class="tab-panel active">
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% for cat, msg in messages %}
-      <div style="padding:10px 14px;border-radius:6px;margin-bottom:16px;background:{{ '#fee2e2' if cat=='error' else '#d1fae5' }};color:{{ '#991b1b' if cat=='error' else '#065f46' }}">{{ msg }}</div>
-    {% endfor %}
-  {% endwith %}
   <div class="card" style="padding:4px 20px">
     {% if my_posts %}
       {% for p in my_posts %}
@@ -68,15 +74,47 @@
         <div class="reply-arrow">↳ 回复</div>
         <div class="reply-content">
           <div class="reply-content-text">{{ r.content | truncate(120) }}</div>
-          <div class="reply-post-link">
-            发表于帖子 <a href="{{ url_for('view_post', post_id=r.post_id) }}#reply-{{ r.id }}">「{{ r.post_title | truncate(30) }}」</a>
-            · {{ r.created_at | date('%Y-%m-%d') }}
+          <div class="reply-post-link" style="display:flex;align-items:center;gap:10px">
+            <span>
+              发表于帖子 <a href="{{ url_for('view_post', post_id=r.post_id) }}#reply-{{ r.id }}">「{{ r.post_title | truncate(30) }}」</a>
+              · {{ r.created_at | date('%Y-%m-%d') }}
+            </span>
+            <form method="POST" action="{{ url_for('delete_reply', rid=r.id) }}" style="display:inline" onsubmit="return confirm('删除此回复？')">
+              <button type="submit" class="btn btn-danger btn-sm">删除</button>
+            </form>
           </div>
         </div>
       </div>
       {% endfor %}
     {% else %}
       <p style="text-align:center;color:#9ca3af;padding:40px 0">还没有回复过任何帖子</p>
+    {% endif %}
+  </div>
+</div>
+
+<div id="panel-notifs" class="tab-panel">
+  <div class="card" style="padding:4px 20px">
+    {% if notifications %}
+      {% for n in notifications %}
+      <div class="notif-item {{ 'unread' if not n.is_read }}">
+        {% if n.type == 'reply_post' %}
+          <div class="notif-text">
+            <strong>{{ n.from_username }}</strong> 回复了你的帖子
+            {% if n.post_title %}<a href="{{ url_for('view_post', post_id=n.post_id) }}">「{{ n.post_title | truncate(20) }}」</a>{% endif %}
+          </div>
+        {% elif n.type == 'reply_reply' %}
+          <div class="notif-text">
+            <strong>{{ n.from_username }}</strong> 回复了你的回复
+            {% if n.post_title %}，在帖子 <a href="{{ url_for('view_post', post_id=n.post_id) }}">「{{ n.post_title | truncate(20) }}」</a>{% endif %}
+          </div>
+        {% else %}
+          <div class="notif-text">{{ n.from_username }} 与你产生了互动</div>
+        {% endif %}
+        <div class="notif-time">{{ n.created_at | date('%Y-%m-%d %H:%M') }}</div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <p style="text-align:center;color:#9ca3af;padding:40px 0">暂无通知</p>
     {% endif %}
   </div>
 </div>

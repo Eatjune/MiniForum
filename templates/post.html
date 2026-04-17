@@ -23,11 +23,9 @@
     {% if current_user.id == post.user_id %}
     <a href="{{ url_for('edit_post', pid=post.id) }}" class="btn btn-outline btn-sm">编辑帖子</a>
     {% endif %}
-    {% if current_user.is_admin %}
-    <form method="POST" action="{{ url_for('admin_delete_post', pid=post.id) }}" onsubmit="return confirm('确定删除此帖？')">
+    <form method="POST" action="{{ url_for('delete_post', pid=post.id) }}" onsubmit="return confirm('确定删除此帖？删除后不可恢复')">
       <button type="submit" class="btn btn-danger btn-sm">删除此帖</button>
     </form>
-    {% endif %}
   </div>
   {% endif %}
 </div>
@@ -40,8 +38,8 @@
       <div class="reply-meta">
         <strong>{{ r.username }}</strong>
         <span style="margin-left:10px">{{ r.created_at | date }}</span>
-        {% if current_user and current_user.is_admin %}
-        <form method="POST" action="{{ url_for('admin_delete_reply', rid=r.id) }}" style="display:inline;margin-left:10px" onsubmit="return confirm('删除此回复？')">
+        {% if current_user and (current_user.id == r.user_id or current_user.is_admin) %}
+        <form method="POST" action="{{ url_for('delete_reply', rid=r.id) }}" style="display:inline;margin-left:10px" onsubmit="return confirm('删除此回复？')">
           <button type="submit" class="btn btn-danger btn-sm">删</button>
         </form>
         {% endif %}
