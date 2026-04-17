@@ -407,6 +407,26 @@ def admin_toggle_admin(uid):
             flash('权限已更新', 'success')
     return redirect(url_for('admin'))
 
+@app.route('/admin/change_password/<int:uid>', methods=['GET', 'POST'])
+@admin_required
+def admin_change_password(uid):
+    target = query_one('SELECT id, username FROM users WHERE id=%s', (uid,))
+    if not target:
+        abort(404)
+    if request.method == 'POST':
+        new_pw = request.form.get('new_password', '')
+        new_pw2 = request.form.get('new_password2', '')
+        if not new_pw or len(new_pw) < 6:
+            flash('密码至少6位', 'error')
+        elif new_pw != new_pw2:
+            flash('两次密码不一致', 'error')
+        else:
+            execute('UPDATE users SET password_hash=%s WHERE id=%s',
+                    (generate_password_hash(new_pw), uid))
+            flash(f'用户【{target["username"]}】密码已修改', 'success')
+            return redirect(url_for('admin'))
+    return render_template('admin_change_password.html', target=target)
+
 # ─── 安装路由 ──────────────────────────────────────────────
 
 @app.route('/setup')

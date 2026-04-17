@@ -40,6 +40,7 @@
               {{ '取消管理' if u.is_admin else '设为管理' }}
             </button>
           </form>
+          <a href="{{ url_for('admin_change_password', uid=u.id) }}" class="btn btn-outline btn-sm">改密码</a>
           {% if u.id != current_user.id %}
           <form method="POST" action="{{ url_for('admin_delete_user', uid=u.id) }}" style="display:inline" onsubmit="return confirm('删除用户【{{ u.username }}】？其所有帖子和回复也会被删除')">
             <button type="submit" class="btn btn-danger btn-sm">删除</button>
