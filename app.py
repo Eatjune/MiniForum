@@ -136,7 +136,17 @@ def init_db():
         execute('CREATE INDEX IF NOT EXISTS idx_posts_user ON posts(user_id)')
         execute('CREATE INDEX IF NOT EXISTS idx_posts_time ON posts(created_at DESC)')
         execute('CREATE INDEX IF NOT EXISTS idx_replies_post ON replies(post_id)')
-        execute('CREATE INDEX IF NOT EXISTS idx_replies_parent ON replies(parent_id)')
+
+        # 升级：如果 replies 表没有 parent_id 列则添加
+        try:
+            execute('ALTER TABLE replies ADD COLUMN parent_id INTEGER')
+        except Exception:
+            pass  # 列已存在
+
+        try:
+            execute('CREATE INDEX IF NOT EXISTS idx_replies_parent ON replies(parent_id)')
+        except Exception:
+            pass
         execute('CREATE INDEX IF NOT EXISTS idx_notifs_user ON notifications(user_id)')
         execute('CREATE INDEX IF NOT EXISTS idx_notifs_read ON notifications(user_id, is_read)')
         
@@ -287,7 +297,8 @@ def view_post(post_id):
                     (reply_author, notif_type, session['user_id'], post_id, None)
                 )
             flash('回复成功', 'success')
-        return redirect(url_for('view_post', post_id=post_id) + '#reply-' + str(parent_id or ''))
+            rid = str(parent_id) if parent_id else ''
+            return redirect(url_for('view_post', post_id=post_id) + ('#reply-' + rid if rid else ''))
 
     replies = query_all(
         '''SELECT r.*, u.username
