@@ -135,10 +135,11 @@ def init_db():
         traceback.print_exc(file=sys.stderr)
 
 # 初始化数据库表（启动时执行）
-try:
-    init_db()
-except Exception as e:
-    print(f"数据库初始化警告: {e}", file=sys.stderr)
+with app.app_context():
+    try:
+        init_db()
+    except Exception as e:
+        print(f"数据库初始化警告: {e}", file=sys.stderr)
 
 # ─── 错误处理 ──────────────────────────────────────────────
 
@@ -213,7 +214,7 @@ def index():
         page = max(1, int(request.args.get('page', 1)))
         per_page = 20
         offset = (page - 1) * per_page
-        total = query_one('SELECT COUNT(*) FROM posts')[0]
+        total = query_one('SELECT COUNT(*) FROM posts')['count']
         
         posts = query_all(
             '''SELECT p.*, u.username,
