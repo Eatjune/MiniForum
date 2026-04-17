@@ -20,7 +20,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'miniforum-default-secret')
 
 # Supabase PostgreSQL connection
-DATABASE_URL = os.environ.get('DATABASE_URL', '')
+DATABASE_URL = os.environ.get('DATABASE_URL', '').encode().decode('utf-8-sig')  # 移除 BOM
 
 # ─── 数据库工具 ────────────────────────────────────────────
 
