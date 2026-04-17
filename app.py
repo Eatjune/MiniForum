@@ -2,6 +2,7 @@
 """MiniForum - 轻量级论坛 (Supabase PostgreSQL)"""
 import os
 import sys
+import urllib.parse
 import traceback
 from datetime import datetime
 from functools import wraps
@@ -19,8 +20,9 @@ import mistune
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'miniforum-default-secret')
 
-# Supabase PostgreSQL connection
+# Supabase PostgreSQL connection (SSL required)
 DATABASE_URL = os.environ.get('DATABASE_URL', '').encode().decode('utf-8-sig')  # 移除 BOM
+db_config = urllib.parse.urlparse(DATABASE_URL)
 
 # ─── 数据库工具 ────────────────────────────────────────────
 
@@ -29,11 +31,15 @@ def get_db_connection():
     if not DATABASE_URL:
         raise Exception("DATABASE_URL not set")
     try:
-        # 尝试直接连接，不使用连接池
+        # 使用解析后的配置，显式设置 sslmode
         conn = psycopg2.connect(
-            DATABASE_URL,
-            connect_timeout=10,
-            options='-c sslmode=require'
+            host=db_config.hostname,
+            port=db_config.port or 5432,
+            database=db_config.path.lstrip('/') or 'postgres',
+            user=db_config.username,
+            password=db_config.password,
+            sslmode='require',
+            connect_timeout=10
         )
         return conn
     except Exception as e:
