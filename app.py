@@ -19,50 +19,41 @@ import mistune
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'miniforum-default-secret')
 
-# Supabase PostgreSQL connection pool
+# Supabase PostgreSQL connection
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
 
-# Connection pool - more suitable for serverless
-_db_pool = None
+# ─── 数据库工具 ────────────────────────────────────────────
 
-def init_pool():
-    global _db_pool
-    if _db_pool is None and DATABASE_URL:
-        try:
-            # Supabase requires SSL
-            _db_pool = pool.ThreadedConnectionPool(
-                minconn=1,
-                maxconn=3,
-                dsn=DATABASE_URL,
-                connect_timeout=10,
-                options='-c sslmode=require'
-            )
-            print("Database pool initialized", file=sys.stderr)
-        except Exception as e:
-            print(f"Pool init error: {e}", file=sys.stderr)
-            _db_pool = None
-    return _db_pool
+def get_db_connection():
+    """获取新的数据库连接（每次请求创建，适合 serverless）"""
+    if not DATABASE_URL:
+        raise Exception("DATABASE_URL not set")
+    try:
+        # 尝试直接连接，不使用连接池
+        conn = psycopg2.connect(
+            DATABASE_URL,
+            connect_timeout=10,
+            options='-c sslmode=require'
+        )
+        return conn
+    except Exception as e:
+        print(f"连接错误: {e}", file=sys.stderr)
+        raise
 
 def get_db():
     """获取数据库连接"""
     if 'db' not in g:
-        p = init_pool()
-        if p:
-            try:
-                g.db = p.getconn()
-            except Exception as e:
-                print(f"Get connection error: {e}", file=sys.stderr)
-                raise
-        else:
-            raise Exception("Database pool not initialized")
+        g.db = get_db_connection()
     return g.db
 
 @app.teardown_appcontext
 def close_db(e=None):
     db = g.pop('db', None)
-    p = init_pool()
-    if db and p:
-        p.putconn(db)
+    if db:
+        try:
+            db.close()
+        except:
+            pass
 
 # Markdown 渲染器
 md = mistune.create_markdown(escape=False, plugins=['strikethrough', 'footnotes', 'table'])
@@ -413,11 +404,28 @@ def admin_toggle_admin(uid):
 def debug():
     """调试端点 - 检查环境变量和数据库连接"""
     import json
+    # 解析连接字符串
+    db_info = {}
+    if DATABASE_URL:
+        try:
+            # 尝试解析 URL
+            import urllib.parse
+            parsed = urllib.parse.urlparse(DATABASE_URL)
+            db_info = {
+                'scheme': parsed.scheme,
+                'host': parsed.hostname,
+                'port': parsed.port,
+                'database': parsed.path.lstrip('/') if parsed.path else None,
+                'user': parsed.username,
+                # 不显示完整密码
+                'password_set': bool(parsed.password),
+            }
+        except Exception as e:
+            db_info = {'parse_error': str(e)}
+    
     info = {
-        'DATABASE_URL': '***' if DATABASE_URL else 'NOT SET',
+        'DATABASE_URL': db_info,
         'SECRET_KEY': '***' if app.secret_key else 'NOT SET',
-        'DB_POOL': 'initialized' if _db_pool else 'NOT initialized',
-        'pool_size': _db_pool.statistics() if _db_pool else None
     }
     return json.dumps(info, indent=2)
 
